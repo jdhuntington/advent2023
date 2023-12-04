@@ -17,11 +17,11 @@ struct Part {
 }
 
 fn main() {
-    let sum = process_input(io::stdin().lock());
-    println!("{}", sum);
+    let (sum, gear_ratios) = process_input(io::stdin().lock());
+    println!("sum: {}, gear ratios: {}", sum, gear_ratios);
 }
 
-fn process_input<R: Read>(reader: R) -> u32 {
+fn process_input<R: Read>(reader: R) -> (u32, u32) {
     let mut x_len = 0;
     let mut y_len = 0;
     let mut parts: Vec<Part> = Vec::new();
@@ -38,22 +38,23 @@ fn process_input<R: Read>(reader: R) -> u32 {
             x_len = line.len() as u32;
         }
     }
-
-    // Create a matrix of Option<index> where the index is the index of the part in the parts vector
-    let mut matrix: Vec<Vec<Option<u32>>> = Vec::new();
-    while matrix.len() <= y_len as usize {
+    let mut matrix: Vec<Vec<Option<usize>>> = Vec::new();
+    while matrix.len() < y_len as usize {
         let mut row = Vec::new();
-        while row.len() <= x_len as usize {
+        while row.len() < x_len as usize {
             row.push(None);
         }
         matrix.push(row);
     }
     for (index, part_number) in part_numbers.iter().enumerate() {
         for x in part_number.x..(part_number.x + part_number.width) {
-            matrix[part_number.y as usize][x as usize] = Some(index as u32);
+            matrix[part_number.y as usize][x as usize] = Some(index as usize);
         }
     }
+    let mut gear_parts_sets: Vec<Vec<usize>> = Vec::new();
     for part in parts {
+        let mut gear_parts_indices: Vec<usize> = Vec::new();
+
         let x = part.x;
         let y = part.y;
         for x_offset in -1..=1 {
@@ -67,30 +68,37 @@ fn process_input<R: Read>(reader: R) -> u32 {
                 current_x += x_offset;
                 current_y += y_offset;
                 if current_x < 0 || current_y < 0 {
-                    break;
+                    continue;
                 }
                 let current_x = current_x as usize;
                 let current_y = current_y as usize;
                 if current_x >= matrix[0].len() || current_y >= matrix.len() {
-                    break;
+                    continue;
                 }
                 if let Some(index) = matrix[current_y][current_x] {
-                    let part_number = &part_numbers[index as usize];
-                    if part_number.real_part {
-                        break;
-                    }
                     part_numbers[index as usize].real_part = true;
+                    if part.symbol == '*' && !gear_parts_indices.contains(&index) {
+                        gear_parts_indices.push(index);
+                    }
                 }
             }
         }
+        if !gear_parts_indices.is_empty() {
+            gear_parts_sets.push(gear_parts_indices);
+        }
     }
+    let gear_ratios = gear_parts_sets
+        .iter()
+        .filter(|v| v.len() == 2)
+        .map(|v| part_numbers[v[0]].number * part_numbers[v[1]].number)
+        .sum::<u32>();
     let mut sum = 0;
     for part_number in part_numbers {
         if part_number.real_part {
             sum += part_number.number;
         }
     }
-    sum
+    (sum, gear_ratios)
 }
 
 fn process_line(part_numbers: &mut Vec<PartNumber>, parts: &mut Vec<Part>, line: &str, y_pos: u32) {
@@ -350,6 +358,85 @@ mod tests {
 .664.598..
         "#;
         let result = process_input(input.as_bytes());
-        assert_eq!(4361, result);
+        assert_eq!((4361, 467835), result);
+    }
+
+    #[test]
+    fn test_process_input_advent_input_2() {
+        let input = r#"
+.......358..........31.....339.....669.............598......328.....575......................447..650..............964...........692........
+...............415..*.........@......*...627*...................945*.............144/.506............................*......514...*...150...
+.........182..+.....873.756.......737........784..568....667..............258........./.........741...........707*....84........520.........
+"#;
+        let result = process_input(input.as_bytes());
+        assert_eq!(
+            (
+                31 + 339
+                    + 669
+                    + 575
+                    + 964
+                    + 692
+                    + 415
+                    + 627
+                    + 945
+                    + 144
+                    + 506
+                    + 873
+                    + 737
+                    + 784
+                    + 707
+                    + 84
+                    + 520,
+                1995875
+            ),
+            result
+        );
+    }
+
+    #[test]
+    fn test_process_input_advent_input_3() {
+        let input = r#"
+    .....856...214..236....*.....159.%......738.....-......826....&.272.*.......36.....465.........../.....*...587.......*....*......548..699...
+    .............*........36..........743.=.../...............*......*..424.................580.#...897.448....*.......833...633.....*...*......
+    .............963......................542........734.....901...914..........843.............523..........818..................691.....833...
+        "#;
+        let result = process_input(input.as_bytes());
+        assert_eq!(
+            (
+                214 + 738
+                    + 826
+                    + 272
+                    + 587
+                    + 548
+                    + 699
+                    + 36
+                    + 743
+                    + 424
+                    + 897
+                    + 448
+                    + 833
+                    + 633
+                    + 963
+                    + 542
+                    + 901
+                    + 914
+                    + 523
+                    + 818
+                    + 691
+                    + 833,
+                2640017
+            ),
+            result
+        );
+    }
+
+    #[test]
+    fn test_process_input_advent_input_4() {
+        let input = r#"
+.*
+36
+    "#;
+        let result = process_input(input.as_bytes());
+        assert_eq!((36, 0), result);
     }
 }
