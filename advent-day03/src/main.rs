@@ -53,6 +53,15 @@ fn process_line(parts: &mut Vec<PartNumber>, line: &str, y_pos: u32) {
             current_x = x_pos as u32;
         }
     }
+    if !current_number.is_empty() {
+        let part = PartNumber {
+            x: current_x + 1 - current_width,
+            width: current_width,
+            y: y_pos,
+            number: current_number.parse::<u32>().unwrap(),
+        };
+        parts.push(part);
+    }
 }
 
 #[cfg(test)]
@@ -60,7 +69,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_line() {
+    fn test_parse_line1() {
         let mut expected = Vec::new();
         expected.push(PartNumber {
             x: 0,
@@ -75,6 +84,78 @@ mod tests {
             number: 114,
         });
         let input = "467..114..";
+        let mut parts: Vec<PartNumber> = Vec::new();
+        process_line(&mut parts, input, 0);
+        assert_eq!(expected, parts);
+    }
+
+    #[test]
+    fn test_parse_line2() {
+        let mut expected = Vec::new();
+        expected.push(PartNumber {
+            x: 0,
+            width: 1,
+            y: 0,
+            number: 1,
+        });
+        let input = "1";
+        let mut parts: Vec<PartNumber> = Vec::new();
+        process_line(&mut parts, input, 0);
+        assert_eq!(expected, parts);
+    }
+
+    #[test]
+    fn test_parse_line3() {
+        let mut expected = Vec::new();
+        expected.push(PartNumber {
+            x: 0,
+            width: 1,
+            y: 0,
+            number: 1,
+        });
+        expected.push(PartNumber {
+            x: 2,
+            width: 1,
+            y: 0,
+            number: 1,
+        });
+        expected.push(PartNumber {
+            x: 4,
+            width: 1,
+            y: 0,
+            number: 1,
+        });
+        let input = "1.1.1";
+        let mut parts: Vec<PartNumber> = Vec::new();
+        process_line(&mut parts, input, 0);
+        assert_eq!(expected, parts);
+    }
+
+    #[test]
+    fn test_parse_line4() {
+        let mut expected = Vec::new();
+        expected.push(PartNumber {
+            x: 0,
+            width: 5,
+            y: 0,
+            number: 12345,
+        });
+        let input = "12345";
+        let mut parts: Vec<PartNumber> = Vec::new();
+        process_line(&mut parts, input, 0);
+        assert_eq!(expected, parts);
+    }
+
+    #[test]
+    fn test_parse_line5() {
+        let mut expected = Vec::new();
+        expected.push(PartNumber {
+            x: 0,
+            width: 5,
+            y: 0,
+            number: 12345,
+        });
+        let input = "12345.";
         let mut parts: Vec<PartNumber> = Vec::new();
         process_line(&mut parts, input, 0);
         assert_eq!(expected, parts);
