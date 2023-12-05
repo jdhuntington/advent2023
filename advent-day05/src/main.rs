@@ -33,20 +33,50 @@ fn process_map_header(line: &str) -> Result<&str, &str> {
     Ok(line)
 }
 
+fn process_mappings(line: &str) -> Result<(u32, u32, u32), &str> {
+    let mut parts = line.split_whitespace();
+    if parts.clone().count() != 3 {
+        return Err("invalid line");
+    }
+
+    let first = parts.next().ok_or("No first part found")?;
+    let second = parts.next().ok_or("No second part found")?;
+    let third = parts.next().ok_or("No third part found")?;
+
+    let first = first.parse::<u32>().map_err(|_| "Invalid number")?;
+    let second = second.parse::<u32>().map_err(|_| "Invalid number")?;
+    let third = third.parse::<u32>().map_err(|_| "Invalid number")?;
+
+    Ok((first, second, third))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_parse_map_header_success() {
-        let name = process_map_header("temperature-to-humidity map:");
-        assert_eq!(Ok("temperature-to-humidity"), name)
+        assert_eq!(
+            Ok("temperature-to-humidity"),
+            process_map_header("temperature-to-humidity map:")
+        )
     }
 
     #[test]
     fn test_parse_map_header_failure() {
-        let result = process_map_header("incorrect header");
-        assert!(result.is_err());
+        assert!(process_map_header("incorrect header").is_err());
+    }
+
+    #[test]
+    fn test_parse_mappings_success() {
+        assert_eq!(Ok((0, 69, 1)), process_mappings("0 69 1"));
+    }
+
+    #[test]
+    fn test_parse_mappings_failure() {
+        assert!(process_mappings("0 1").is_err());
+        assert!(process_mappings("0 1 a").is_err());
+        assert!(process_mappings("100 100 100a").is_err());
     }
 
     //     #[test]
