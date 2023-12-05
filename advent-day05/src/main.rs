@@ -12,23 +12,33 @@ fn main() {
 }
 
 fn process_input<R: Read>(reader: R) -> (u32, u32) {
+    #[derive(PartialEq)]
+    enum ParseState {
+        Seeds,
+        ExpectMapStartOrEof,
+        ExpectMappingBlankOrEof,
+    }
     let buffered = io::BufReader::new(reader);
-    let lowest = 0;
+
+    let mut state = ParseState::Seeds;
     for line_result in buffered.lines() {
         let line = line_result.unwrap();
-        if line.trim().is_empty() {
+        if state == ParseState::Seeds {
+            if line.trim().is_empty() {
+                continue;
+            }
+            let seeds = process_seeds(&line);
+            state = ParseState::ExpectMapStartOrEof;
             continue;
         }
     }
-    (lowest, 0)
+    (0, 0)
 }
 
 fn process_map_header(line: &str) -> Result<&str, &str> {
-    // make sure line ends with " map:"
     if !line.ends_with(" map:") {
         return Err("invalid line");
     }
-    // remove " map:" from the end
     let line = line.trim_end_matches(" map:");
     Ok(line)
 }
@@ -48,6 +58,20 @@ fn process_mappings(line: &str) -> Result<(u32, u32, u32), &str> {
     let third = third.parse::<u32>().map_err(|_| "Invalid number")?;
 
     Ok((first, second, third))
+}
+
+fn process_seeds(line: &str) -> Result<Vec<u32>, &str> {
+    if !line.starts_with("seeds: ") {
+        return Err("invalid line");
+    }
+    let line = line.trim_start_matches("seeds: ");
+
+    let mut seeds = Vec::new();
+    for seed in line.split_whitespace() {
+        let seed = seed.parse::<u32>().map_err(|_| "Invalid number")?;
+        seeds.push(seed);
+    }
+    Ok(seeds)
 }
 
 #[cfg(test)]
@@ -77,6 +101,21 @@ mod tests {
         assert!(process_mappings("0 1").is_err());
         assert!(process_mappings("0 1 a").is_err());
         assert!(process_mappings("100 100 100a").is_err());
+    }
+
+    #[test]
+    fn test_parse_seeds_success() {
+        assert_eq!(
+            Ok(vec![79, 14, 55, 13]),
+            process_seeds("seeds: 79 14 55 13")
+        );
+    }
+
+    #[test]
+    fn test_parse_seeds_failure() {
+        assert!(process_seeds("seeds 79 14 55 13").is_err());
+        assert!(process_seeds("79 14 55 13").is_err());
+        assert!(process_seeds("seeds:").is_err());
     }
 
     //     #[test]
