@@ -2,8 +2,8 @@ use std::io::{self, BufRead, Read};
 
 #[derive(Debug, PartialEq)]
 struct RaceRecord {
-    time: u32,
-    record: u32,
+    time: u64,
+    record: u64,
 }
 
 fn main() {
@@ -11,7 +11,7 @@ fn main() {
     println!("mult_result: {}, ?: {}", mult_result, question);
 }
 
-fn process_input<R: Read>(reader: R) -> (u32, u32) {
+fn process_input<R: Read>(reader: R) -> (u64, u64) {
     let buffered = io::BufReader::new(reader);
     let mut line1: Option<String> = None;
     let mut line2: Option<String> = None;
@@ -35,11 +35,11 @@ fn process_input<R: Read>(reader: R) -> (u32, u32) {
     (compute_mult_result(scenarios), 0)
 }
 
-fn compute_mult_result(scenarios: Vec<RaceRecord>) -> u32 {
+fn compute_mult_result(scenarios: Vec<RaceRecord>) -> u64 {
     let mut result = 1;
     for scenario in scenarios {
         let winning_scenarios = compute_winning_scenarios(scenario);
-        result *= winning_scenarios.len() as u32;
+        result *= winning_scenarios.len() as u64;
     }
     result
 }
@@ -62,14 +62,14 @@ fn parse_race_lines(line1: &str, line2: &str) -> Vec<RaceRecord> {
         if time.is_none() || record.is_none() {
             break;
         }
-        let time = time.unwrap().parse::<u32>().unwrap();
-        let record = record.unwrap().parse::<u32>().unwrap();
+        let time = time.unwrap().parse::<u64>().unwrap();
+        let record = record.unwrap().parse::<u64>().unwrap();
         result.push(RaceRecord { time, record });
     }
     result
 }
 
-fn compute_winning_scenarios(input: RaceRecord) -> Vec<u32> {
+fn compute_winning_scenarios(input: RaceRecord) -> Vec<u64> {
     let mut result = Vec::new();
     for i in 0..=(input.time) {
         let charge_time = i;
@@ -119,5 +119,15 @@ Distance:  9  40  200
             "#;
         let result = process_input(input.as_bytes());
         assert_eq!((288, 0), result);
+    }
+
+    #[test]
+    fn test_process_input_advent_example_2() {
+        let input = r#"
+Time:      71530
+Distance:  940200
+            "#;
+        let result = process_input(input.as_bytes());
+        assert_eq!((71503, 0), result);
     }
 }
