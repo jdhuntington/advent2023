@@ -5,6 +5,7 @@ use std::io::{self, BufRead, Read};
 struct Hand {
     human_friendly: String,
     rankable: u32,
+    wild_rankable: u32,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -28,23 +29,19 @@ impl Bid {
             wager,
         }
     }
-}
 
-impl PartialOrd for Bid {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.hand.rankable.partial_cmp(&other.hand.rankable)
+    fn sort_by_basic_rank(a: &Bid, b: &Bid) -> Ordering {
+        a.hand.rankable.cmp(&b.hand.rankable)
     }
-}
 
-impl Ord for Bid {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+    fn sort_by_wild_rank(a: &Bid, b: &Bid) -> Ordering {
+        a.hand.wild_rankable.cmp(&b.hand.wild_rankable)
     }
 }
 
 impl Hand {
     fn new(human_friendly: &str) -> Self {
-        let cards = human_friendly
+        let cards: Vec<u8> = human_friendly
             .chars()
             .map(|c| match c {
                 '2' => 0,
@@ -66,7 +63,8 @@ impl Hand {
 
         Hand {
             human_friendly: human_friendly.to_string(),
-            rankable: Hand::get_rankable(cards),
+            rankable: Hand::get_rankable(cards.clone()),
+            wild_rankable: Hand::get_wild_rankable(cards),
         }
     }
 
@@ -76,6 +74,64 @@ impl Hand {
             rank = (rank << 4) | (card as u32);
         }
         rank
+    }
+
+    fn get_wild_rankable(cards: Vec<u8>) -> u32 {
+        let adjusted_cards: Vec<u8> = cards
+            .iter()
+            .map(|&card| match card {
+                0 => 1,
+                1 => 2,
+                2 => 3,
+                3 => 4,
+                4 => 5,
+                5 => 6,
+                6 => 7,
+                7 => 8,
+                8 => 9,
+                9 => 0,
+                _ => card,
+            })
+            .collect();
+        let mut rank = Hand::get_wild_ranking(adjusted_cards.clone());
+        for card in adjusted_cards {
+            rank = (rank << 4) | (card as u32);
+        }
+        rank
+    }
+
+    fn get_wild_ranking(cards: Vec<u8>) -> u32 {
+        let mut frequency_map = [0; 13];
+        let mut wild_card_count = 0;
+        for card in cards {
+            if card == 0 {
+                wild_card_count += 1;
+                continue;
+            }
+            frequency_map[card as usize] += 1;
+        }
+        frequency_map.sort_unstable();
+        frequency_map.reverse();
+        frequency_map[0] += wild_card_count;
+        if frequency_map[0] == 5 {
+            return 6;
+        }
+        if frequency_map[0] == 4 {
+            return 5;
+        }
+        if frequency_map[0] == 3 && frequency_map[1] == 2 {
+            return 4;
+        }
+        if frequency_map[0] == 3 {
+            return 3;
+        }
+        if frequency_map[0] == 2 && frequency_map[1] == 2 {
+            return 2;
+        }
+        if frequency_map[0] == 2 {
+            return 1;
+        }
+        0
     }
 
     fn get_ranking(cards: Vec<u8>) -> u32 {
@@ -108,8 +164,8 @@ impl Hand {
 }
 
 fn main() {
-    let (winning_sum, question) = process_input(io::stdin().lock());
-    println!("winning_sum: {}, ?: {}", winning_sum, question);
+    let (winning_sum, jokers_wild) = process_input(io::stdin().lock());
+    println!("winning_sum: {}, jokers_wild: {}", winning_sum, jokers_wild);
 }
 
 fn process_input<R: Read>(reader: R) -> (u32, u32) {
@@ -122,12 +178,18 @@ fn process_input<R: Read>(reader: R) -> (u32, u32) {
         }
         bids.push(Bid::new(&line));
     }
-    bids.sort_unstable();
+    bids.sort_by(Bid::sort_by_basic_rank);
     let mut winning_sum = 0;
     for (i, bid) in bids.iter().enumerate() {
         winning_sum += bid.wager * ((i + 1) as u32);
     }
-    (winning_sum, 0)
+
+    bids.sort_by(Bid::sort_by_wild_rank);
+    let mut wild_sum = 0;
+    for (i, bid) in bids.iter().enumerate() {
+        wild_sum += bid.wager * ((i + 1) as u32);
+    }
+    (winning_sum, wild_sum)
 }
 
 #[cfg(test)]
@@ -154,6 +216,7 @@ mod tests {
             Hand {
                 human_friendly: "32T3K".to_string(),
                 rankable: 1116187,
+                wild_rankable: 1116187,
             },
             hand
         );
@@ -175,6 +238,6 @@ KTJJT 220
 QQQJA 483
             "#;
         let result = process_input(input.as_bytes());
-        assert_eq!((6440, 0), result);
+        assert_eq!((6440, 5905), result);
     }
 }
