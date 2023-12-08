@@ -22,7 +22,7 @@ fn main() {
     );
 }
 
-fn process_input<R: Read>(reader: R) -> (u32, u32) {
+fn process_input<R: Read>(reader: R) -> (u32, u64) {
     let buffered = io::BufReader::new(reader);
     let mut directions: Option<Vec<Direction>> = None;
     let mut map = HashMap::new();
@@ -40,10 +40,12 @@ fn process_input<R: Read>(reader: R) -> (u32, u32) {
     }
 
     let mut simple_steps = 0;
+    let mut complex_steps = 0;
     if let Some(real_directions) = directions {
         simple_steps = compute_simple_steps(&real_directions, &map);
+        complex_steps = compute_complex_steps(&real_directions, &map);
     }
-    (simple_steps, 0)
+    (simple_steps, complex_steps)
 }
 
 fn parse_directions(input: &str) -> Vec<Direction> {
@@ -65,7 +67,6 @@ fn parse_map_row(input: &str) -> MapNode {
     let left = directions.next().unwrap();
     let left = &left[1..];
     let right = directions.next().unwrap();
-    // remove ending paren from right
     let right = &right[..right.len() - 1];
     MapNode {
         name: name.to_string(),
@@ -78,14 +79,85 @@ fn compute_simple_steps(directions: &Vec<Direction>, map: &HashMap<String, MapNo
     let mut steps_taken: u32 = 0;
     let mut current_node_name = "AAA";
     while current_node_name != "ZZZ" {
-        let current_node = map.get(current_node_name).unwrap();
-        let direction = directions[(steps_taken as usize) % directions.len()];
-        match direction {
-            Direction::Left => current_node_name = &current_node.left,
-            Direction::Right => current_node_name = &current_node.right,
+        if let Some(current_node) = map.get(current_node_name) {
+            let direction = directions[(steps_taken as usize) % directions.len()];
+            match direction {
+                Direction::Left => current_node_name = &current_node.left,
+                Direction::Right => current_node_name = &current_node.right,
+            }
+            steps_taken += 1;
+        } else {
+            return 0;
         }
-        steps_taken += 1;
     }
+    steps_taken
+}
+
+fn compute_complex_steps(directions: &Vec<Direction>, map: &HashMap<String, MapNode>) -> u64 {
+    let mut steps_taken: u64 = 0;
+    let mut mod_steps_taken: usize = 0;
+    let directions_length = directions.len();
+    let mut current_nodes = map
+        .keys()
+        .filter(|k| k.ends_with('A'))
+        .map(|k| k.to_string())
+        .collect::<Vec<String>>();
+    let total_nodes: u8 = current_nodes.len() as u8;
+    let mut nodes_in_target: u8 = 0;
+    let mut next_nodes = Vec::new();
+    let mut lcm = current_nodes.iter().map(|_| 0).collect::<Vec<u64>>();
+    while nodes_in_target < total_nodes {
+        let mut i: usize = 0;
+        nodes_in_target = 0;
+        next_nodes.clear();
+        for current_node_name in &current_nodes {
+            if let Some(current_node) = map.get(current_node_name) {
+                let direction = directions[mod_steps_taken];
+                let next_node = match direction {
+                    Direction::Left => &current_node.left,
+                    Direction::Right => &current_node.right,
+                };
+                if next_node.ends_with('Z') {
+                    nodes_in_target += 1;
+                    if lcm[i] == 0 {
+                        lcm[i] = steps_taken;
+                    }
+                }
+                next_nodes.push(next_node.to_string());
+            } else {
+                println!("current_node_name (aborting): {}", current_node_name);
+                return 0;
+            }
+            i += 1;
+        }
+
+        // if all values in lcm are non-zero, then we can break early
+        let mut all_non_zero = true;
+        for value in &lcm {
+            if *value == 0 {
+                all_non_zero = false;
+                break;
+            }
+        }
+
+        std::mem::swap(&mut current_nodes, &mut next_nodes);
+        steps_taken += 1;
+        mod_steps_taken += 1;
+        if mod_steps_taken == directions_length {
+            mod_steps_taken = 0;
+        }
+
+        if steps_taken % 19900000 == 0 {
+            println!("steps_taken: {} (mod: {})", steps_taken, mod_steps_taken);
+        }
+
+        if all_non_zero {
+            break;
+        }
+    }
+
+    println!("lcm: {:?}", lcm);
+
     steps_taken
 }
 
@@ -128,7 +200,7 @@ GGG = (GGG, GGG)
 ZZZ = (ZZZ, ZZZ)
             "#;
         let result = process_input(input.as_bytes());
-        assert_eq!((2, 0), result);
+        assert_eq!((2, 2), result);
     }
 
     #[test]
@@ -141,6 +213,24 @@ BBB = (AAA, ZZZ)
 ZZZ = (ZZZ, ZZZ)
             "#;
         let result = process_input(input.as_bytes());
-        assert_eq!((6, 0), result);
+        assert_eq!((6, 6), result);
+    }
+
+    #[test]
+    fn test_process_input_advent_example_3() {
+        let input = r#"
+LR
+
+11A = (11B, XXX)
+11B = (XXX, 11Z)
+11Z = (11B, XXX)
+22A = (22B, XXX)
+22B = (22C, 22C)
+22C = (22Z, 22Z)
+22Z = (22B, 22B)
+XXX = (XXX, XXX)
+"#;
+        let result = process_input(input.as_bytes());
+        assert_eq!((0, 6), result);
     }
 }
